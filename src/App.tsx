@@ -23,7 +23,7 @@ const GlobalStyle = styled.div`
   }
 `;
 
-const Timeline = lazy(() => import('./components/Timeline'))
+const Timeline = lazy(() => import('./components/TaskList'))
 
 function App() {
   // TODO: NoMatch, Random welcome message

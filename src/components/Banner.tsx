@@ -17,7 +17,7 @@ export default function Banner() {
         <Container>
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
           <Navbar.Brand href="#">
-            VIZL
+            Tasker
           </Navbar.Brand>
           {user.id ? <Navbar.Text>{user.id.preferred_username}</Navbar.Text> : <Navbar.Text></Navbar.Text>} 
         </Container>
