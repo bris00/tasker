@@ -23,7 +23,7 @@ const GlobalStyle = styled.div`
   }
 `;
 
-const Timeline = lazy(() => import('./components/TaskList'))
+const TaskList = lazy(() => import('./components/TaskList'))
 
 function App() {
   // TODO: NoMatch, Random welcome message
@@ -37,9 +37,9 @@ function App() {
         <GlobalStyle style={{ height: "100vh", display: "flex", flexFlow: "column" }}>
           <Banner />
           <Routes>
-            <Route path="/:timeline" element={
+            <Route path="/list" element={
               <Suspense fallback={<>...</>}>
-                <Timeline />
+                <TaskList />
               </Suspense>
             } />
           </Routes>

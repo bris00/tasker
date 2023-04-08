@@ -1,0 +1,14 @@
+So Ricky has finished sorting the community task list for me and I've saved it as a csv.
+
+(MVP) What I'd like to be able to do is:
+- Select one/multiple times from a checkbox menu.
+- Select which equipment I have from a checkbox menu.
+- Click "Give me a task".
+- The program outputs all of the tasks that fits those requirements in a list, shuffled. (If the task doesn't require equipment, it shows - equipment selection just eliminates unchecked boxes)
+- Be able to update the database by feeding it a new csv file.
+
+(No idea how feasible these are) Extra things:
+- Add a "limits" column to the database that will further filter out tasks based on limits.
+- Set up "profiles" of subs where I can save pre-set inputs for equipment and limits, so all I have to do is select e.g. "a half hour task for Nici" and it'll correctly filter out tasks where Nici doesn't have that equipment or has the task as a limit.
+- Being able to output 3 tasks instead of all of them. (Or select a number.)
+- Being able to remove an entry from the database from within the program (e.g. by clicking "Don't show me this task again")
