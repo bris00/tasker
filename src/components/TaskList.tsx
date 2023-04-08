@@ -25,9 +25,9 @@ type Option = {
 
 const allData = [
     { number: 31, task: "1", duration: "30", equipment: ["1"], categories: ["a"] },
-    { number: 41, task: "1", duration: "30", equipment: ["2", "3"], categories: ["b", "a"] },
-    { number: 37, task: "1", duration: null, equipment: ["4"], categories: ["c", "d"] },
-    { number: 38, task: "1", duration: "120", equipment: [], categories: [] },
+    { number: 41, task: "2", duration: "30", equipment: ["2", "3"], categories: ["b", "a"] },
+    { number: 37, task: "3", duration: null, equipment: ["4"], categories: ["c", "d"] },
+    { number: 38, task: "4", duration: "120", equipment: [], categories: [] },
 ];
 
 const equipmentFilter = (availableEquipment: string[]) => (data: typeof allData[0]) => {
