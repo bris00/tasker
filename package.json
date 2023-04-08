@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "prod-build": "vite build --base=/vizl/",
+    "prod-build": "vite build --base=/tasker/",
     "preview": "vite preview",
     "kill-port": "kill-port 5173"
   },
