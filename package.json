@@ -27,6 +27,7 @@
     "ka-table": "^7.14.1",
     "lodash.debounce": "^4.0.8",
     "pretty-ms": "^8.0.0",
+    "pure-rand": "^6.0.1",
     "react-bootstrap": "^2.7.2",
     "react-localstorage-hooks": "^1.0.2",
     "react-router-dom": "^6.8.1",

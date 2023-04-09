@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Form from 'react-bootstrap/Form';
 import Slider from '@mui/material/Slider';
 import debounce from 'lodash.debounce';
+import prand from 'pure-rand';
 
 import { useLocalStorageState } from 'react-localstorage-hooks';
 
@@ -15,9 +16,9 @@ import { kaPropsUtils } from 'ka-table/utils';
 import Select, { OptionsOrGroups } from 'react-select';
 import Container from 'react-bootstrap/Container';
 import styled from 'styled-components';
-import prettyMilliseconds from 'pretty-ms';
 import { ICellTextProps } from 'ka-table/props';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Data, prettyDuration } from '@/utils';
 
 const StyledSelect = styled(({ className, ...props }) => (
     <Select
@@ -33,20 +34,13 @@ type Option = {
     label: string,
 };
 
-type Data = {
-    number: number,
-    task: string,
-    duration: number | null,
-    equipment: string[],
-    limits: string[],
-};
 
 const equipmentFilter = (availableEquipment: string[]) => (data: Data) => {
     return availableEquipment.length == 0 || data.equipment.every(e => availableEquipment.includes(e));
 };
 
 const categoryFilter = (availableLimits: string[]) => (data: Data) => {
-    return availableLimits.length == 0 || !data.limits.some(e => availableLimits.includes(e));
+    return availableLimits.length == 0 || !data.kinks.some(e => availableLimits.includes(e));
 };
 
 const durationFilter = ([lower, upper]: number[]) => (data: Data) => {
@@ -54,8 +48,6 @@ const durationFilter = ([lower, upper]: number[]) => (data: Data) => {
 
     return data.duration == null || (data.duration > (lower - eps) && data.duration < (upper + eps));
 };
-
-const prettyDuration = (durationSeconds: number) => prettyMilliseconds(durationSeconds * 1000, { unitCount: 2, separateMilliseconds: true })
 
 
 const SelectionCell: React.FC<ICellTextProps> = ({ rowKeyValue, isSelectedRow, selectedRows }) => {
@@ -115,12 +107,14 @@ const DURATION_KEY = 2;
 export default () => {
     const [allData, _] = useLocalStorageState<Data[]>('tasks', {
         initialState: [
-            { number: 31, task: "Buy a new smaller/spikier/more secure/more embarrassing cage or belt.", duration: 30 * 60, equipment: ["money"], limits: [] },
-            { number: 41, task: "Stand 15 minutes with a cup of water on your head, in your highest heels and with a vibrating plug. If it falls, start over. Try at least 3 times.", duration: 10 * 24 * 60 * 60, equipment: ["heels", "vibrating plug"], limits: ["anal", "feminization"] },
-            { number: 37, task: "put on some nipple clamps to wear during the next task and roll again.", duration: null, equipment: ["nipple clamps"], limits: ["mild pain"] },
-            { number: 38, task: "make a nice picture/drawing for your keyholder. Subject of your choice, or ask keyholder if you can't think of anything.", duration: 24 * 60 * 60, equipment: [], limits: [] },
+            { number: 31, task: "Buy a new smaller/spikier/more secure/more embarrassing cage or belt.", duration: 30 * 60, equipment: ["money"], kinks: [] },
+            { number: 41, task: "Stand 15 minutes with a cup of water on your head, in your highest heels and with a vibrating plug. If it falls, start over. Try at least 3 times.", duration: 10 * 24 * 60 * 60, equipment: ["heels", "vibrating plug"], kinks: ["anal", "feminization"] },
+            { number: 37, task: "put on some nipple clamps to wear during the next task and roll again.", duration: null, equipment: ["nipple clamps"], kinks: ["mild pain"] },
+            { number: 38, task: "make a nice picture/drawing for your keyholder. Subject of your choice, or ask keyholder if you can't think of anything.", duration: 24 * 60 * 60, equipment: [], kinks: [] },
         ]
     });
+
+    // useEffect(() => console.log(allData), [allData]);
 
     const shuffleData = useCallback(() => allData.map(d => ({ ...d, randomValue: Math.random() })), [allData]);
 
@@ -165,23 +159,31 @@ export default () => {
         },
     });
 
-    const [shuffledData, setShuffledData] = useState(shuffleData());
+    const generateSeed = () => Date.now() ^ (Math.random() * 0x100000000);
+    const [shuffleSeed, setShuffledSeed] = useState(generateSeed());
+
+    const nthRand = (rng: prand.RandomGenerator, n: number) => {
+        const [val, _] = prand.uniformIntDistribution(0, Number.MAX_SAFE_INTEGER, prand.skipN(rng, n));
+        return val / Number.MAX_SAFE_INTEGER;
+    };
 
     const filteredData = useMemo(() => {
-        return shuffledData.slice()
+        let rng = prand.xoroshiro128plus(shuffleSeed);
+        rng = rng.jump ? rng.jump() : rng;
+
+        return allData.slice()
             .filter(equipmentFilter(availableEquipment))
             .filter(categoryFilter(availableLimits))
             .filter(durationFilter(durationRange.map(linearToLog).map(percentToDuration)))
-            .map(d => ({ ...d, duration: d.duration !== null ? prettyDuration(d.duration) : null }));
-    }, [availableEquipment, availableLimits, durationRange, shuffledData]);
+            .map(d => ({ ...d, randomValue: nthRand(rng, d.number), duration: d.duration !== null ? prettyDuration(d.duration) : null }));
+    }, [availableEquipment, availableLimits, durationRange, allData, shuffleSeed]);
 
-    const equipmentOptions: OptionsOrGroups<Option, never> = [...new Set(allData.flatMap(row => row.equipment))].map(eq => ({ value: eq, label: eq, }));
+    const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.equipment))].map(eq => ({ value: eq, label: eq, })), [allData]);
+    const limitsOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.kinks))].map(eq => ({ value: eq, label: eq, })), [allData]);
 
     const equipmentFilterChanged = (equipment: Option[]) => {
         setAvailableEquipment(equipment.map(e => e.value));
     };
-
-    const limitsOptions: OptionsOrGroups<Option, never> = [...new Set(allData.flatMap(row => row.limits))].map(eq => ({ value: eq, label: eq, }));
 
     const limitsFilterChanged = (category: Option[]) => {
         setAvailableLimits(category.map(e => e.value));
@@ -199,7 +201,7 @@ export default () => {
 
     const inputGroupTextStyle = { width: "11em" };
 
-    const shuffleList = () => setShuffledData(shuffleData());
+    const shuffleList = () => setShuffledSeed(generateSeed());
 
     const randomChoices = useMemo(() => {
         const filteredIds = filteredData.map(d => d.number);
@@ -319,8 +321,8 @@ export default () => {
                         dataType: DataType.String,
                     },
                     {
-                        key: 'limits',
-                        title: 'Limits',
+                        key: 'kinks',
+                        title: 'Kinks',
                         dataType: DataType.String,
                     },
                 ]}

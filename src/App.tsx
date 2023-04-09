@@ -24,11 +24,10 @@ const GlobalStyle = styled.div`
 `;
 
 const TaskList = lazy(() => import('./components/TaskList'))
+const Task = lazy(() => import('./components/Task'))
+const RandomTask = lazy(() => import('./components/RandomTask'))
 
 function App() {
-  // TODO: NoMatch, Random welcome message
-  // {/* <Route path="*" element={<NoMatch />} /> */}
-
   const user = createUser();
 
   return (
@@ -40,6 +39,11 @@ function App() {
             <Route path="/list" element={
               <Suspense fallback={<>...</>}>
                 <TaskList />
+              </Suspense>
+            } />
+            <Route path="/random/:ids" element={
+              <Suspense fallback={<>...</>}>
+                <RandomTask />
               </Suspense>
             } />
           </Routes>
