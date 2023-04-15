@@ -4,21 +4,30 @@ import Slider from '@mui/material/Slider';
 import debounce from 'lodash.debounce';
 import prand from 'pure-rand';
 
-import { useLocalStorageState } from 'react-localstorage-hooks';
-
 import Button from 'react-bootstrap/Button';
 import InputGroup from 'react-bootstrap/InputGroup';
 
-import { DataType, Table, useTable, useTableInstance } from 'ka-table';
+import { DataType, IKaTableProps, Table, useTable, useTableInstance } from 'ka-table';
 import { SortDirection } from 'ka-table/enums';
 import { kaPropsUtils } from 'ka-table/utils';
 
 import Select, { OptionsOrGroups } from 'react-select';
 import Container from 'react-bootstrap/Container';
-import styled from 'styled-components';
+import styled, { StyledComponent } from 'styled-components';
 import { ICellTextProps } from 'ka-table/props';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Data, prettyDuration } from '@/utils';
+import { deser, linearToLog, Null, prettyDuration, ser, sfw, Task, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
+import parse from 'parse-duration';
+
+import Fuse from 'fuse.js'
+
+export type Data = {
+    number: number,
+    task: string,
+    duration: number | null,
+    equipment: string[],
+    kinks: string[],
+};
 
 const StyledSelect = styled(({ className, ...props }) => (
     <Select
@@ -49,6 +58,9 @@ const durationFilter = ([lower, upper]: number[]) => (data: Data) => {
     return data.duration == null || (data.duration > (lower - eps) && data.duration < (upper + eps));
 };
 
+const searchFilter = (searchResults: undefined | Map<number, Fuse.FuseResult<Task>>) => (data: Data) => {
+    return searchResults === undefined || searchResults.has(data.number);
+};
 
 const SelectionCell: React.FC<ICellTextProps> = ({ rowKeyValue, isSelectedRow, selectedRows }) => {
     const table = useTableInstance();
@@ -89,57 +101,53 @@ const SelectionHeader = () => {
     );
 };
 
-const Null = {
-    map<T, R>(x: T | null, fn: (_: T) => R): R | null {
-        if (x === null) {
-            return null;
-        } else {
-            return fn(x);
-        }
-    }
-};
-
 const EQUIPMENT_KEY = 1;
 const CATEGORIES_KEY = 2;
 const SEARCH_KEY = 1;
 const DURATION_KEY = 2;
 
+const StyledTable: StyledComponent<(_: IKaTableProps) => JSX.Element, any, {}, never> = styled(function ({ className, ...props }) {
+    return <div className={className}>
+        <Table
+            {...props}
+        />
+    </div>;
+})`
+  .ka-row {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #F7FcFd;
+    }
+  }
+`;
+
+function arrayToMap<T, K extends string | number | symbol>(array: T[], key: (_: T) => K): Map<K, T> {
+    const map = new Map<K, T>();
+
+    for (const x of array) {
+        map.set(key(x), x);
+    }
+    
+    return map;
+}
+
 export default () => {
-    const [allData, _] = useLocalStorageState<Data[]>('tasks', {
-        initialState: [
-            { number: 31, task: "Buy a new smaller/spikier/more secure/more embarrassing cage or belt.", duration: 30 * 60, equipment: ["money"], kinks: [] },
-            { number: 41, task: "Stand 15 minutes with a cup of water on your head, in your highest heels and with a vibrating plug. If it falls, start over. Try at least 3 times.", duration: 10 * 24 * 60 * 60, equipment: ["heels", "vibrating plug"], kinks: ["anal", "feminization"] },
-            { number: 37, task: "put on some nipple clamps to wear during the next task and roll again.", duration: null, equipment: ["nipple clamps"], kinks: ["mild pain"] },
-            { number: 38, task: "make a nice picture/drawing for your keyholder. Subject of your choice, or ask keyholder if you can't think of anything.", duration: 24 * 60 * 60, equipment: [], kinks: [] },
-        ]
-    });
+    const [allTasks, _] = useTasks();
 
-    // useEffect(() => console.log(allData), [allData]);
+    const fuse = useMemo(() => (new Fuse(allTasks, {
+        keys: ['number', 'task', 'equipment', 'kinks', 'duration'],
+        findAllMatches: true,
+        includeScore: false,
+        shouldSort: false,
+        threshold: 0.3,
+        ignoreLocation: true,
+    })), [allTasks]);
 
-    const shuffleData = useCallback(() => allData.map(d => ({ ...d, randomValue: Math.random() })), [allData]);
-
-    const maxDuration = useMemo(() => Math.max(...allData.map(d => d.duration || Number.MIN_VALUE)), [allData]);
-    const minDuration = useMemo(() => Math.min(...allData.map(d => d.duration || Number.MAX_VALUE)), [allData]);
-
-    const percentToDuration = useCallback((percent: number) => percent * (maxDuration - minDuration) + minDuration, [minDuration, maxDuration]);
-    // const durationToPercent = (duration: number) => (duration - minDuration) / (maxDuration - minDuration);
-
-    // https://stackoverflow.com/a/17102320
-    const x = 0;
-    const midpoint = 0.8;
-    const z = 1;
-
-    const A = (x * z - midpoint * midpoint) / (x - 2 * midpoint + z);
-    const B = (midpoint - x) * (midpoint - x) / (x - 2 * midpoint + z);
-    const C = 2 * Math.log((z - midpoint) / (midpoint - x));
-
-    const linearToLog = (percent: number) => Math.log((percent - A) / B) / C;
-    // const logToLinear = (percent: number) => A + B * Math.exp(C * percent);
+    const allData = useMemo<Data[]>(() => (allTasks.map(t => ({ ...t, duration: Null.map(t.duration, d => parse(d, "sec")) }))), [allTasks]);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const ser = (a: unknown) => btoa(JSON.stringify(a)).split('=')[0];
-    const deser = (a: string) => JSON.parse(atob(a));
 
     const profile = Null.map(searchParams.get("profile"), deser) || { [EQUIPMENT_KEY]: [], [CATEGORIES_KEY]: [] };
     const ephemeral = Null.map(searchParams.get("ephemeral"), deser) || { [DURATION_KEY]: [0, 1], [SEARCH_KEY]: undefined };
@@ -148,6 +156,8 @@ export default () => {
     const [availableLimits, setAvailableLimits] = useState<string[]>(profile[CATEGORIES_KEY]);
     const [durationRange, setDurationRange] = useState(ephemeral[DURATION_KEY]);
     const [searchText, setSearchText] = useState<undefined | string>(ephemeral[SEARCH_KEY]);
+
+    const searchResults = useMemo(() => searchText ? arrayToMap(fuse.search(searchText), r => r.item.number) : undefined, [fuse, searchText]);
 
     const [selectedData, setSelectedData] = useState<number[]>([]);
 
@@ -167,6 +177,8 @@ export default () => {
         return val / Number.MAX_SAFE_INTEGER;
     };
 
+    const { percentToDuration } = useFromPercentToRange(useMinMax(allData, (d) => d.duration));
+
     const filteredData = useMemo(() => {
         let rng = prand.xoroshiro128plus(shuffleSeed);
         rng = rng.jump ? rng.jump() : rng;
@@ -175,8 +187,9 @@ export default () => {
             .filter(equipmentFilter(availableEquipment))
             .filter(categoryFilter(availableLimits))
             .filter(durationFilter(durationRange.map(linearToLog).map(percentToDuration)))
+            .filter(searchFilter(searchResults))
             .map(d => ({ ...d, randomValue: nthRand(rng, d.number), duration: d.duration !== null ? prettyDuration(d.duration) : null }));
-    }, [availableEquipment, availableLimits, durationRange, allData, shuffleSeed]);
+    }, [availableEquipment, availableLimits, durationRange, allData, shuffleSeed, searchResults]);
 
     const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.equipment))].map(eq => ({ value: eq, label: eq, })), [allData]);
     const limitsOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.kinks))].map(eq => ({ value: eq, label: eq, })), [allData]);
@@ -230,12 +243,16 @@ export default () => {
         navigate("/random/" + randomChoices.join(","));
     };
 
+    const handleTaskClick = (task: Task) => {
+        navigate("/task/" + task.number);
+    };
+
     return (
         <Container>
             <Form>
                 <Form.Group>
                     <InputGroup>
-                        <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Limits</InputGroup.Text>
+                        <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">{sfw ? "Unwanted Categories" : "Limits"}</InputGroup.Text>
                         <StyledSelect
                             defaultValue={availableLimits.map(c => ({ value: c, label: c }))}
                             onChange={limitsFilterChanged}
@@ -276,7 +293,7 @@ export default () => {
                         <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Search</InputGroup.Text>
                         <Form.Control
                             placeholder="Search..."
-                            value={searchText}
+                            value={searchText || ""}
                             aria-label="Search"
                             aria-describedby="basic-addon1"
                             onChange={(e) => setSearchText(e.target.value)}
@@ -289,7 +306,7 @@ export default () => {
                     <Button onClick={openRandom} variant="outline-secondary">Open random (1d{randomChoices.length})</Button>
                 </InputGroup>
             </Form>
-            <Table
+            <StyledTable
                 table={table}
                 columns={[
                     {
@@ -322,17 +339,11 @@ export default () => {
                     },
                     {
                         key: 'kinks',
-                        title: 'Kinks',
+                        title: sfw ? "Categories" : 'Kinks',
                         dataType: DataType.String,
                     },
                 ]}
                 data={filteredData}
-                format={({ column, value }) => {
-                    if (column.dataType === DataType.Date) {
-                        return value && value.toLocaleDateString('en', { month: '2-digit', day: '2-digit', year: 'numeric' });
-                    }
-                }}
-                searchText={searchText}
                 rowKeyField={'number'}
                 childComponents={{
                     cellText: {
@@ -355,6 +366,15 @@ export default () => {
                                 return <SelectionHeader />;
                             }
                         },
+                    },
+                    dataRow: {
+                        elementAttributes: () => ({
+                            onClick: (e, extendedEvent) => {
+                                const { childProps } = extendedEvent;
+
+                                handleTaskClick(childProps.rowData);
+                            }
+                        }),
                     },
                 }}
             />

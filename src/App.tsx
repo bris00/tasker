@@ -1,9 +1,10 @@
 import { Suspense, lazy } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useParams, useSearchParams } from "react-router-dom";
 
 import Banner from './components/Banner';
 import { createUser, UserContext } from './composable/user';
+import { deser, Null } from './utils';
 
 const theme = {
   color: {
@@ -27,6 +28,17 @@ const TaskList = lazy(() => import('./components/TaskList'))
 const Task = lazy(() => import('./components/Task'))
 const RandomTask = lazy(() => import('./components/RandomTask'))
 
+const IdTask = () => {
+  const { id } = useParams();
+  const [ searchParams ] = useSearchParams();
+  
+  const task = searchParams.get("perma");
+
+  if (!id) return <div>No task selected</div>
+    
+  return <Task id={parseInt(id)} task={Null.map(task, deser) || undefined} />
+}
+
 function App() {
   const user = createUser();
 
@@ -44,6 +56,11 @@ function App() {
             <Route path="/random/:ids" element={
               <Suspense fallback={<>...</>}>
                 <RandomTask />
+              </Suspense>
+            } />
+            <Route path="/task/:id" element={
+              <Suspense fallback={<>...</>}>
+                <IdTask />
               </Suspense>
             } />
           </Routes>
