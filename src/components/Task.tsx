@@ -1,6 +1,6 @@
-import { sfw, Task, useTasks, linearToLog, prettyDuration, useFromPercentToRange, logToLinear, marks, ser } from '@/utils';
+import { sfw, Task, useTasks, linearToLog, prettyDuration, useFromPercentToRange, logToLinear, marks, ser, useLink } from '@/utils';
 import { Button, FormControl, FormControlLabel, FormGroup, Slider, Switch } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
+import { forwardRef, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Col from 'react-bootstrap/Col';
 import Container from 'react-bootstrap/esm/Container';
 import Form from 'react-bootstrap/Form';
@@ -10,6 +10,8 @@ import ShareIcon from '@mui/icons-material/Share';
 import CreatableSelect from 'react-select/creatable';
 import parse from 'parse-duration';
 import prettyMilliseconds from 'pretty-ms';
+import styled from 'styled-components';
+import { FormControlProps } from 'react-bootstrap/esm/FormControl';
 
 type Props = {
   id: number;
@@ -20,6 +22,16 @@ type Option = {
   value: string,
   label: string,
 };
+
+const StyledTextArea = styled(forwardRef<HTMLTextAreaElement, FormControlProps>((props, ref) => (
+  <Form.Control {...props} ref={ref} as="textarea" />
+)))`
+textarea {
+  min-height: 60px;
+  overflow-y: auto;
+  word-wrap: break-word
+}
+`;
 
 function MultiValueRemove<T1, T2 extends boolean, T3 extends GroupBase<T1>>(props: MultiValueRemoveProps<T1, T2, T3>) {
   return (
@@ -55,8 +67,6 @@ export default ({ id, task: serializedTask }: Props) => {
     })
   };
 
-  function dbg<T>(x: T): T { return (console.log(x), x); }
-
   const task = useMemo(() => serializedTask ? { ...serializedTask, number: id } : allTasks.find(t => t.number === id), [serializedTask, allTasks, id])
   const taskInDataset = useMemo(() => !!allTasks.find(t => t.number === id), [allTasks, id])
 
@@ -64,7 +74,19 @@ export default ({ id, task: serializedTask }: Props) => {
 
   const [readOnly, setReadOnly] = useState(true);
 
+  const textarea = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => updateTextareaHeight(), [textarea]);
+
+  const updateTextareaHeight = () => {
+    if (textarea.current) {
+      textarea.current.style.height = (textarea.current.scrollHeight > textarea.current.clientHeight) ? (textarea.current.scrollHeight) + "px" : "12rem";;
+    }
+  };
+
   const descriptionChanged = (desc: string) => {
+    updateTextareaHeight();
+
     setTask({ ...task, task: desc });
   };
 
@@ -100,6 +122,12 @@ export default ({ id, task: serializedTask }: Props) => {
   }, [readOnly]);
 
   const marksInRange = useMemo(() => marks.filter(inRange).map(m => ({ value: logToLinear(durationToPercent(m)) })), [inRange]);
+
+  const permaLink = useLink(useMemo(() => {
+    const { number: _, ...data } = task;
+
+    return { pathname: "/task/" + task.number, search: "perma=" + ser(data) };
+  }, [task]));
 
   return (
     <Container>
@@ -173,7 +201,7 @@ export default ({ id, task: serializedTask }: Props) => {
             Task description
           </Form.Label>
           <Col sm="10">
-            <Form.Control onChange={e => descriptionChanged(e.target.value)} plaintext={readOnly} readOnly={readOnly} as="textarea" value={task.task} />
+            <StyledTextArea ref={textarea} onChange={e => descriptionChanged(e.target.value)} plaintext={readOnly} readOnly={readOnly} value={task.task} />
           </Col>
         </Form.Group>
       </Form>
@@ -186,11 +214,7 @@ export default ({ id, task: serializedTask }: Props) => {
               label="Edit"
             /> : <></>
           }
-          <Button variant="text" onClick={() => {
-            const { number: _, ...data } = task;
-
-            navigator.clipboard.writeText(window.location.href + "?perma=" + ser(data));
-          }} startIcon={<ShareIcon />}>
+          <Button variant="text" onClick={() => navigator.clipboard.writeText(permaLink)} startIcon={<ShareIcon />}>
             Share
           </Button>
         </FormGroup>

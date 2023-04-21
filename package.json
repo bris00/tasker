@@ -19,7 +19,9 @@
   },
   "devDependencies": {
     "@mui/icons-material": "^5.11.16",
+    "@mui/lab": "^5.0.0-alpha.127",
     "@types/lodash.debounce": "^4.0.7",
+    "@types/papaparse": "^5.3.7",
     "@types/react": "^18.0.27",
     "@types/react-dom": "^18.0.10",
     "@types/styled-components": "^5.1.26",
@@ -28,6 +30,7 @@
     "fuse.js": "^6.6.2",
     "ka-table": "^7.14.1",
     "lodash.debounce": "^4.0.8",
+    "papaparse": "^5.4.1",
     "parse-duration": "^1.0.3",
     "pretty-ms": "^8.0.0",
     "pure-rand": "^6.0.1",

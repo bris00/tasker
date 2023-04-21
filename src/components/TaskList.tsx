@@ -8,7 +8,7 @@ import Button from 'react-bootstrap/Button';
 import InputGroup from 'react-bootstrap/InputGroup';
 
 import { DataType, IKaTableProps, Table, useTable, useTableInstance } from 'ka-table';
-import { SortDirection } from 'ka-table/enums';
+import { PagingPosition, SortDirection } from 'ka-table/enums';
 import { kaPropsUtils } from 'ka-table/utils';
 
 import Select, { OptionsOrGroups } from 'react-select';
@@ -16,7 +16,7 @@ import Container from 'react-bootstrap/Container';
 import styled, { StyledComponent } from 'styled-components';
 import { ICellTextProps } from 'ka-table/props';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { deser, linearToLog, Null, prettyDuration, ser, sfw, Task, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
+import { arrayToMap, dbg, deser, linearToLog, Null, prettyDuration, ser, sfw, Task, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
 import parse from 'parse-duration';
 
 import Fuse from 'fuse.js'
@@ -42,7 +42,6 @@ type Option = {
     value: string,
     label: string,
 };
-
 
 const equipmentFilter = (availableEquipment: string[]) => (data: Data) => {
     return availableEquipment.length == 0 || data.equipment.every(e => availableEquipment.includes(e));
@@ -121,16 +120,6 @@ const StyledTable: StyledComponent<(_: IKaTableProps) => JSX.Element, any, {}, n
     }
   }
 `;
-
-function arrayToMap<T, K extends string | number | symbol>(array: T[], key: (_: T) => K): Map<K, T> {
-    const map = new Map<K, T>();
-
-    for (const x of array) {
-        map.set(key(x), x);
-    }
-    
-    return map;
-}
 
 export default () => {
     const [allTasks, _] = useTasks();
@@ -311,6 +300,7 @@ export default () => {
                 columns={[
                     {
                         key: 'selection-cell',
+                        width: "40",
                     },
                     {
                         key: 'randomValue',
@@ -322,6 +312,7 @@ export default () => {
                         key: 'number',
                         title: 'Number',
                         dataType: DataType.Number,
+                        width: "80",
                     },
                     {
                         key: 'task',
@@ -331,18 +322,28 @@ export default () => {
                         key: 'duration',
                         title: 'Duration',
                         dataType: DataType.String,
+                        width: "80",
                     },
                     {
                         key: 'equipment',
                         title: 'Equipment',
                         dataType: DataType.String,
+                        width: "100",
                     },
                     {
                         key: 'kinks',
                         title: sfw ? "Categories" : 'Kinks',
                         dataType: DataType.String,
+                        width: "100",
                     },
                 ]}
+                paging= {{
+                    enabled: true,
+                    pageIndex: 0,
+                    pageSize: 10,
+                    pageSizes: [5, 10, 15],
+                    position: PagingPosition.Bottom
+                  }}
                 data={filteredData}
                 rowKeyField={'number'}
                 childComponents={{

@@ -2,6 +2,7 @@ import parse from "parse-duration";
 import prettyMilliseconds, { Options } from "pretty-ms";
 import { useCallback, useMemo } from "react";
 import { useLocalStorageState } from "react-localstorage-hooks";
+import { To, useHref } from "react-router-dom";
 
 export const sfw = false;
 
@@ -13,12 +14,43 @@ export type Task = {
     kinks: string[],
 };
 
+export type Dataset = {
+  id: number,
+  name: string,
+  googleSheetsLink: string | null,
+  tasks: Task[],
+};
+
 export const prettyDuration = (durationSeconds: number, options?: Options) => prettyMilliseconds(durationSeconds * 1000, { ...options, unitCount: 2, separateMilliseconds: true })
 
+export function arrayToMap<T, K extends string | number | symbol>(array: T[], key: (_: T) => K): Map<K, T> {
+    const map = new Map<K, T>();
+
+    for (const x of array) {
+        map.set(key(x), x);
+    }
+
+    return map;
+}
+
 export function useTasks(): [Task[], ((_: (Task[] | ((_: Task[]) => Task[]))) => void)] {
-    const [allTasks, setAllTasks] = useLocalStorageState<Task[]>('tasks', {
+    const [datasets, setDatasets] = useLocalStorageState<Dataset[]>('datasets', {
         initialState: []
     });
+
+    const [activeDatasetId, _] = useLocalStorageState<null | number>('active_dataset', {
+        initialState: null,
+    });
+    
+    const allTasks = useMemo<Task[]>(() => datasets.find(d => d.id === activeDatasetId)?.tasks || [], [activeDatasetId, datasets]);
+    
+    const setAllTasks: ((_: (Task[] | ((_: Task[]) => Task[]))) => void) = useCallback((tasks) => {
+        if (Array.isArray(tasks)) {
+            setAllTasks(() => tasks);
+        } else {
+            setDatasets(ds => ds.map(d => d.id !== activeDatasetId ? d : { ...d, tasks: tasks(d.tasks) }))
+        }
+    }, [activeDatasetId]);
 
     if (sfw) {
         return [useMemo(() => allTasks.map(t => ({
@@ -32,10 +64,12 @@ export function useTasks(): [Task[], ((_: (Task[] | ((_: Task[]) => Task[]))) =>
     }
 }
 
+export function dbg<T>(x: T): T { return (console.log(x), x); }
+
 export function useMinMax<T>(data: T[], accessor: (_: T) => number | null) {
     return {
-        min: useMemo(() => Math.min(...data.map(d => accessor(d) || Number.MAX_VALUE)), [data]),
-        max: useMemo(() => Math.max(...data.map(d => accessor(d) || Number.MIN_VALUE)), [data]),
+        min: useMemo(() => data.length <= 0 ? 0 : Math.min(...data.map(d => accessor(d) || Number.MAX_VALUE)), [data]),
+        max: useMemo(() => data.length <= 0 ? 1 : Math.max(...data.map(d => accessor(d) || Number.MIN_VALUE)), [data]),
     };
 }
 
@@ -120,3 +154,9 @@ export const Null = {
         }
     }
 };
+
+export function useLink(to: To) {
+    const permaPath = useHref(to);
+
+    return useMemo(() => `${window.location.protocol}//${window.location.host}${import.meta.env.BASE_URL}${permaPath}`, [permaPath])
+}

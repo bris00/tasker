@@ -24,9 +24,10 @@ const GlobalStyle = styled.div`
   }
 `;
 
-const TaskList = lazy(() => import('./components/TaskList'))
-const Task = lazy(() => import('./components/Task'))
-const RandomTask = lazy(() => import('./components/RandomTask'))
+const TaskList = lazy(() => import('./components/TaskList'));
+const Task = lazy(() => import('./components/Task'));
+const RandomTask = lazy(() => import('./components/RandomTask'));
+const Dataset = lazy(() => import('./components/Dataset'));
 
 const IdTask = () => {
   const { id } = useParams();
@@ -61,6 +62,11 @@ function App() {
             <Route path="/task/:id" element={
               <Suspense fallback={<>...</>}>
                 <IdTask />
+              </Suspense>
+            } />
+            <Route path="/dataset" element={
+              <Suspense fallback={<>...</>}>
+                <Dataset />
               </Suspense>
             } />
           </Routes>

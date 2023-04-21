@@ -4,10 +4,13 @@ import Nav from "react-bootstrap/Nav";
 import 'ka-table/style.css';
 
 import { useUser } from '@/composable/user';
-import styled from "styled-components";
+import { useHref } from "react-router-dom";
 
 export default function Banner() {
     const user = useUser();
+    
+    const listLink = useHref({ pathname: '/list' });
+    const datasetLink = useHref({ pathname: '/dataset' });
 
     return (
       <Navbar collapseOnSelect expand={false} bg="dark" variant='dark'>
@@ -20,7 +23,10 @@ export default function Banner() {
         </Container>
         <Navbar.Collapse id="responsive-navbar-nav">
           <Nav className="mr-auto">
-            <Nav.Link href="#/list">List Tasks</Nav.Link>
+            <Nav.Link href={listLink}>List Tasks</Nav.Link>
+          </Nav>
+          <Nav className="mr-auto">
+            <Nav.Link href={datasetLink}>Dataset</Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Navbar>
