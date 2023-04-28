@@ -1,11 +1,11 @@
-import { sfw, Task, useTasks, linearToLog, prettyDuration, useFromPercentToRange, logToLinear, marks, ser, useLink } from '@/utils';
+import { sfw, Task, useTasks, linearToLog, prettyDuration, useFromPercentToRange, logToLinear, marks, ser, useLink, unique } from '@/utils';
 import { Button, FormControl, FormControlLabel, FormGroup, Slider, Switch } from '@mui/material';
 import { forwardRef, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Col from 'react-bootstrap/Col';
 import Container from 'react-bootstrap/esm/Container';
 import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
-import { components, GroupBase, MultiValue, MultiValueRemoveProps, OptionsOrGroups, Props as SelectProps } from 'react-select';
+import { components, GroupBase, MultiValue, MultiValueRemoveProps, OptionsOrGroups, Props as SelectProps, SingleValue } from 'react-select';
 import ShareIcon from '@mui/icons-material/Share';
 import CreatableSelect from 'react-select/creatable';
 import parse from 'parse-duration';
@@ -90,8 +90,9 @@ export default ({ id, task: serializedTask }: Props) => {
     setTask({ ...task, task: desc });
   };
 
-  const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allTasks.flatMap(row => row.equipment))].map(eq => ({ value: eq, label: eq, })), [allTasks]);
-  const kinksOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allTasks.flatMap(row => row.kinks))].map(eq => ({ value: eq, label: eq, })), [allTasks]);
+  const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.flatMap(row => row.equipment)).map(eq => ({ value: eq, label: eq, })), [allTasks]);
+  const kinksOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.flatMap(row => row.kinks)).map(eq => ({ value: eq, label: eq, })), [allTasks]);
+  const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.map(t => t.intensity)).map(intensity => ({ value: intensity, label: intensity, })), [allTasks]);
 
   const kinksChanged = (options: MultiValue<Option>) => {
     setTask({ ...task, kinks: options.map(o => o.value) });
@@ -99,6 +100,10 @@ export default ({ id, task: serializedTask }: Props) => {
 
   const equipmentChanged = (options: MultiValue<Option>) => {
     setTask({ ...task, equipment: options.map(o => o.value) });
+  };
+
+  const intensityChanged = (option: SingleValue<Option>) => {
+    setTask({ ...task, intensity: option?.value || "" });
   };
 
   const { percentToDuration, durationToPercent, inRange } = useFromPercentToRange({ min: 0, max: parse('1d', 'sec') });
@@ -138,6 +143,21 @@ export default ({ id, task: serializedTask }: Props) => {
           </Form.Label>
           <Col sm="10">
             <Form.Control plaintext readOnly value={task.number} />
+          </Col>
+        </Form.Group>
+
+        <Form.Group as={Row} className="mb-3">
+          <Form.Label column sm="2">
+            Intensity
+          </Form.Label>
+          <Col sm="10">
+            <MySelect
+              value={{ value: task.intensity || "", label: task.intensity || "" }}
+              options={intensityOptions}
+              isMulti={false}
+              readOnly={readOnly}
+              onChange={intensityChanged}
+            />
           </Col>
         </Form.Group>
 

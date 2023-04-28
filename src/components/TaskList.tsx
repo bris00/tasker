@@ -16,10 +16,11 @@ import Container from 'react-bootstrap/Container';
 import styled, { StyledComponent } from 'styled-components';
 import { ICellTextProps } from 'ka-table/props';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { arrayToMap, dbg, deser, linearToLog, Null, prettyDuration, ser, sfw, Task, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
+import { arrayToMap, dbg, deser, linearToLog, Null, prettyDuration, ser, sfw, Task, unique, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
 import parse from 'parse-duration';
 
 import Fuse from 'fuse.js'
+import { StateManagerProps } from 'react-select/dist/declarations/src/useStateManager';
 
 export type Data = {
     number: number,
@@ -27,16 +28,18 @@ export type Data = {
     duration: number | null,
     equipment: string[],
     kinks: string[],
+    intensity: string,
 };
 
-const StyledSelect = styled(({ className, ...props }) => (
+const StyledSelect = (props: StateManagerProps) => (
     <Select
         {...props}
-        className={className}
+        styles={{
+            menu: (base) => ({ ...base, zIndex: 5 }),
+            container: (base) => ({ ...base, flexGrow: 1 }),
+        }}
     />
-))`
-  flex-grow: 1;
-`;
+);
 
 type Option = {
     value: string,
@@ -49,6 +52,10 @@ const equipmentFilter = (availableEquipment: string[]) => (data: Data) => {
 
 const categoryFilter = (availableLimits: string[]) => (data: Data) => {
     return availableLimits.length == 0 || !data.kinks.some(e => availableLimits.includes(e));
+};
+
+const intensityFilter = (selectedIntensities: string[]) => (data: Data) => {
+    return selectedIntensities.length == 0 || selectedIntensities.includes(data.intensity);
 };
 
 const durationFilter = ([lower, upper]: number[]) => (data: Data) => {
@@ -104,6 +111,7 @@ const EQUIPMENT_KEY = 1;
 const CATEGORIES_KEY = 2;
 const SEARCH_KEY = 1;
 const DURATION_KEY = 2;
+const INTENSITY_KEY = 3;
 
 const StyledTable: StyledComponent<(_: IKaTableProps) => JSX.Element, any, {}, never> = styled(function ({ className, ...props }) {
     return <div className={className}>
@@ -122,7 +130,7 @@ const StyledTable: StyledComponent<(_: IKaTableProps) => JSX.Element, any, {}, n
 `;
 
 export default () => {
-    const [allTasks, _] = useTasks();
+    const [allTasks, _, tasksLoading] = useTasks();
 
     const fuse = useMemo(() => (new Fuse(allTasks, {
         keys: ['number', 'task', 'equipment', 'kinks', 'duration'],
@@ -137,14 +145,14 @@ export default () => {
 
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const profile = Null.map(searchParams.get("profile"), deser) || { [EQUIPMENT_KEY]: null, [CATEGORIES_KEY]: null };
+    const ephemeral = Null.map(searchParams.get("ephemeral"), deser) || { [DURATION_KEY]: null, [SEARCH_KEY]: null, [INTENSITY_KEY]: null };
 
-    const profile = Null.map(searchParams.get("profile"), deser) || { [EQUIPMENT_KEY]: [], [CATEGORIES_KEY]: [] };
-    const ephemeral = Null.map(searchParams.get("ephemeral"), deser) || { [DURATION_KEY]: [0, 1], [SEARCH_KEY]: undefined };
-
-    const [availableEquipment, setAvailableEquipment] = useState<string[]>(profile[EQUIPMENT_KEY]);
-    const [availableLimits, setAvailableLimits] = useState<string[]>(profile[CATEGORIES_KEY]);
-    const [durationRange, setDurationRange] = useState(ephemeral[DURATION_KEY]);
-    const [searchText, setSearchText] = useState<undefined | string>(ephemeral[SEARCH_KEY]);
+    const [availableEquipment, setAvailableEquipment] = useState<string[]>(profile[EQUIPMENT_KEY] || []);
+    const [availableLimits, setAvailableLimits] = useState<string[]>(profile[CATEGORIES_KEY] || []);
+    const [selectedIntensities, setSelectedIntensities] = useState<string[]>(ephemeral[INTENSITY_KEY] || []);
+    const [durationRange, setDurationRange] = useState(ephemeral[DURATION_KEY] || [0, 1]);
+    const [searchText, setSearchText] = useState<undefined | string>(ephemeral[SEARCH_KEY] || undefined);
 
     const searchResults = useMemo(() => searchText ? arrayToMap(fuse.search(searchText), r => r.item.number) : undefined, [fuse, searchText]);
 
@@ -175,13 +183,15 @@ export default () => {
         return allData.slice()
             .filter(equipmentFilter(availableEquipment))
             .filter(categoryFilter(availableLimits))
+            .filter(intensityFilter(selectedIntensities))
             .filter(durationFilter(durationRange.map(linearToLog).map(percentToDuration)))
             .filter(searchFilter(searchResults))
             .map(d => ({ ...d, randomValue: nthRand(rng, d.number), duration: d.duration !== null ? prettyDuration(d.duration) : null }));
-    }, [availableEquipment, availableLimits, durationRange, allData, shuffleSeed, searchResults]);
+    }, [availableEquipment, availableLimits, durationRange, allData, shuffleSeed, searchResults, selectedIntensities]);
 
-    const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.equipment))].map(eq => ({ value: eq, label: eq, })), [allData]);
-    const limitsOptions: OptionsOrGroups<Option, never> = useMemo(() => [...new Set(allData.flatMap(row => row.kinks))].map(eq => ({ value: eq, label: eq, })), [allData]);
+    const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.equipment)).map(eq => ({ value: eq, label: eq, })), [allData]);
+    const limitsOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.kinks)).map(eq => ({ value: eq, label: eq, })), [allData]);
+    const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.intensity)).map(eq => ({ value: eq, label: eq, })), [allData]);
 
     const equipmentFilterChanged = (equipment: Option[]) => {
         setAvailableEquipment(equipment.map(e => e.value));
@@ -189,6 +199,10 @@ export default () => {
 
     const limitsFilterChanged = (category: Option[]) => {
         setAvailableLimits(category.map(e => e.value));
+    };
+
+    const intensityFilterChanged = (category: Option[]) => {
+        setSelectedIntensities(category.map(e => e.value));
     };
 
     const durationChange = (_: unknown, range: number[] | number) => {
@@ -223,8 +237,8 @@ export default () => {
 
     useEffect(() => pushHistory({
         profile: ser({ [EQUIPMENT_KEY]: availableEquipment, [CATEGORIES_KEY]: availableLimits }),
-        ephemeral: ser({ [DURATION_KEY]: durationRange, [SEARCH_KEY]: searchText })
-    }), [availableEquipment, availableLimits, durationRange, searchText]);
+        ephemeral: ser({ [DURATION_KEY]: durationRange, [SEARCH_KEY]: searchText, [INTENSITY_KEY]: selectedIntensities })
+    }), [availableEquipment, availableLimits, durationRange, searchText, selectedIntensities]);
 
     const navigate = useNavigate();
 
@@ -244,7 +258,7 @@ export default () => {
                         <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">{sfw ? "Unwanted Categories" : "Limits"}</InputGroup.Text>
                         <StyledSelect
                             defaultValue={availableLimits.map(c => ({ value: c, label: c }))}
-                            onChange={limitsFilterChanged}
+                            onChange={opts => limitsFilterChanged(opts as Option[])}
                             isMulti
                             options={limitsOptions}
                             classNamePrefix="select"
@@ -254,7 +268,7 @@ export default () => {
                         <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Available Equipemnt</InputGroup.Text>
                         <StyledSelect
                             defaultValue={availableEquipment.map(c => ({ value: c, label: c }))}
-                            onChange={equipmentFilterChanged}
+                            onChange={opts => equipmentFilterChanged(opts as Option[])}
                             isMulti
                             options={equipmentOptions}
                             classNamePrefix="select"
@@ -288,6 +302,16 @@ export default () => {
                             onChange={(e) => setSearchText(e.target.value)}
                         />
                     </InputGroup>
+                    <InputGroup>
+                        <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Intensitiy</InputGroup.Text>
+                        <StyledSelect
+                            defaultValue={selectedIntensities.map(c => ({ value: c, label: c }))}
+                            onChange={opts => intensityFilterChanged(opts as Option[])}
+                            isMulti
+                            options={intensityOptions}
+                            classNamePrefix="select"
+                        />
+                    </InputGroup>
                 </Form.Group>
                 <hr />
                 <InputGroup>
@@ -297,6 +321,7 @@ export default () => {
             </Form>
             <StyledTable
                 table={table}
+                loading={{ enabled: tasksLoading }}
                 columns={[
                     {
                         key: 'selection-cell',
@@ -323,6 +348,12 @@ export default () => {
                         title: 'Duration',
                         dataType: DataType.String,
                         width: "80",
+                    },
+                    {
+                        key: 'intensity',
+                        title: 'Intensity',
+                        dataType: DataType.String,
+                        width: "100",
                     },
                     {
                         key: 'equipment',
