@@ -15,3 +15,5 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 )
 
 postMessage({ payload: 'removeLoading' }, '*')
+
+// JSON.stringify([...document.querySelectorAll(".messageContent-2t3eCI").values()].map(d => d.textContent))

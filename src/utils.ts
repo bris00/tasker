@@ -108,17 +108,18 @@ function isTaskKey(key: string): key is keyof Task {
 function normalizeTask(task: { [key in keyof Task]: string }): Task {
     return {
         number: parseInt(task.number),
-        task: task.task,
-        duration: task.duration,
-        equipment: task.equipment.split(',').map(apply([toLower])),
-        kinks: task.kinks.split(',').map(apply([toLower])),
-        intensity: task.intensity,
+        task: apply([trim])(task.task),
+        duration: apply([trim])(task.duration),
+        equipment: task.equipment.split(',').map(apply([toLower, trim])).filter(Boolean),
+        kinks: task.kinks.split(',').map(apply([toLower, trim])).filter(Boolean),
+        intensity: apply([trim])(task.intensity),
     };
 }
 
 type P = (_: string) => string;
 
 const toLower: P = (s) => s.toLowerCase();
+const trim: P = (s) => s.trim();
 
 const apply = (ps: P[]) => (s: string) => {
     let result = s;
@@ -226,12 +227,12 @@ export function useDatasets(): [Dataset[], SetHook<Dataset[]>, number | null, Se
     useEffect(() => {
         if (window.localStorage.getItem("datasets") === null) {
             setDatasetLoading(true);
-            fetch("https://api.fureweb.com/spreadsheets/11YpYAMc1rWzjYXaEZCrL7ip3I2UJSeA048Jqvwd-3Xc")
+            fetch("https://api.fureweb.com/spreadsheets/12DwW0SxPuRgh_i2VWlO7jSOIc0stpvIEJMBkJoJtRBs")
                 .then(x => x.json())
                 .then(value => {
                     setDatasets([{
                         id: 1,
-                        googleSheetsLink: "https://docs.google.com/spreadsheets/d/11YpYAMc1rWzjYXaEZCrL7ip3I2UJSeA048Jqvwd-3Xc",
+                        googleSheetsLink: "https://docs.google.com/spreadsheets/d/12DwW0SxPuRgh_i2VWlO7jSOIc0stpvIEJMBkJoJtRBs",
                         name: "Chaster Community Tasks - Simp Dojo curated",
                         tasks: parseSheet(value.data),
                     }]);
@@ -300,8 +301,8 @@ export function useFromPercentToRange<T>({ min, max }: { min: number, max: numbe
     };
 }
 
-export const ser = (a: unknown) => btoa(JSON.stringify(a)).split('=')[0];
-export const deser = (a: string) => JSON.parse(atob(a));
+export const ser = (a: unknown) => btoa(encodeURIComponent(JSON.stringify(a))).split('=')[0];
+export const deser = (a: string) => JSON.parse(decodeURIComponent(atob(a)));
 
 // https://stackoverflow.com/a/17102320
 const x = 0;

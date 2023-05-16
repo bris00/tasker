@@ -141,7 +141,7 @@ export default () => {
       }
 
       const old = googleSheetsData.get(d.id);
-      const match = d.googleSheetsLink?.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-]*)/);
+      const match = d.googleSheetsLink?.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]*)/);
       const gid = match?.[1];
 
       if (!old) {
@@ -288,7 +288,14 @@ export default () => {
                       }}>
                         {datasetDiff.unseen.length}
                       </Button>
-                      <Button loading={sheetData.status === "pending"} variant="text" startIcon={<ImportExportIcon />}>
+                      <Button loading={sheetData.status === "pending"} variant="text" startIcon={<ImportExportIcon />} onClick={() => {
+                        setDataset(dataset.id, {
+                          ...dataset,
+                          tasks: [...datasetDiff.conflicting, ...dataset.tasks.filter(t => {
+                            return !datasetDiff.conflicting.map(t => t.number).includes(t.number)
+                          })]
+                        });
+                      }}>
                         {datasetDiff.conflicting.length}
                       </Button>
                       <IconButton aria-label="refresh" color="primary" onClick={() => setRefreshSets(rs => [...rs, props.rowKeyValue])}><SyncIcon /></IconButton>
@@ -353,7 +360,7 @@ export default () => {
           },
         }}
       />
-      <Dialog onClose={(e) => setUploadFileDialogOpen(false)} open={uploadFileDialogOpen}>
+      < Dialog onClose={(e) => setUploadFileDialogOpen(false)} open={uploadFileDialogOpen} >
         <DialogTitle>Upload File to {dialogDataset?.name || "Unknown"}</DialogTitle>
         <Form.Group controlId="formFile" className="mb-3">
           <Form.Control type="file" accept="text/csv" onInput={(e) => handleDialogInput(e.target)} />
@@ -373,7 +380,7 @@ export default () => {
             </Button>
           </ButtonGroup>
         </Grid>
-      </Dialog>
-    </Container>
+      </Dialog >
+    </Container >
   );
 }

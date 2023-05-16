@@ -92,7 +92,7 @@ export default ({ id, task: serializedTask }: Props) => {
 
   const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.flatMap(row => row.equipment)).map(eq => ({ value: eq, label: eq, })), [allTasks]);
   const kinksOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.flatMap(row => row.kinks)).map(eq => ({ value: eq, label: eq, })), [allTasks]);
-  const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.map(t => t.intensity)).map(intensity => ({ value: intensity, label: intensity, })), [allTasks]);
+  const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allTasks.map(t => t.intensity)).filter(Boolean).map(intensity => ({ value: intensity, label: intensity, })), [allTasks]);
 
   const kinksChanged = (options: MultiValue<Option>) => {
     setTask({ ...task, kinks: options.map(o => o.value) });

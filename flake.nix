@@ -29,6 +29,7 @@
 
             # Node
             yarn
+            nodejs
           ] ++ darwinDeps;
         };
       });

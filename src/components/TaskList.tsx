@@ -16,7 +16,7 @@ import Container from 'react-bootstrap/Container';
 import styled, { StyledComponent } from 'styled-components';
 import { ICellTextProps } from 'ka-table/props';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { arrayToMap, dbg, deser, linearToLog, Null, prettyDuration, ser, sfw, Task, unique, useFromPercentToRange, useMinMax, useTasks } from '@/utils';
+import { arrayToMap, dbg, deser, linearToLog, Null, prettyDuration, ser, sfw, Task, unique, useFromPercentToRange, useMinMax, useTasks, useLink } from '@/utils';
 import parse from 'parse-duration';
 
 import Fuse from 'fuse.js'
@@ -191,7 +191,7 @@ export default () => {
 
     const equipmentOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.equipment)).map(eq => ({ value: eq, label: eq, })), [allData]);
     const limitsOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.kinks)).map(eq => ({ value: eq, label: eq, })), [allData]);
-    const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.flatMap(row => row.intensity)).map(eq => ({ value: eq, label: eq, })), [allData]);
+    const intensityOptions: OptionsOrGroups<Option, never> = useMemo(() => unique(allData.map(row => row.intensity).filter(Boolean)).map(eq => ({ value: eq, label: eq, })), [allData]);
 
     const equipmentFilterChanged = (equipment: Option[]) => {
         setAvailableEquipment(equipment.map(e => e.value));
@@ -246,9 +246,20 @@ export default () => {
         navigate("/random/" + randomChoices.join(","));
     };
 
+    const profileLink = useLink(useMemo(() => {
+        return { pathname: "/list", search: "profile=" + ser(profile) };
+    }, [profile]));
+
+    const copyProfile = () => {
+        navigator.clipboard.writeText(profileLink);
+    };
+
     const handleTaskClick = (task: Task) => {
         navigate("/task/" + task.number);
     };
+
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
 
     return (
         <Container>
@@ -293,16 +304,6 @@ export default () => {
                         />
                     </InputGroup>
                     <InputGroup>
-                        <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Search</InputGroup.Text>
-                        <Form.Control
-                            placeholder="Search..."
-                            value={searchText || ""}
-                            aria-label="Search"
-                            aria-describedby="basic-addon1"
-                            onChange={(e) => setSearchText(e.target.value)}
-                        />
-                    </InputGroup>
-                    <InputGroup>
                         <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Intensitiy</InputGroup.Text>
                         <StyledSelect
                             defaultValue={selectedIntensities.map(c => ({ value: c, label: c }))}
@@ -312,11 +313,22 @@ export default () => {
                             classNamePrefix="select"
                         />
                     </InputGroup>
+                    <InputGroup>
+                        <InputGroup.Text style={inputGroupTextStyle} id="inputGroup-sizing-default">Search</InputGroup.Text>
+                        <Form.Control
+                            placeholder="Search..."
+                            value={searchText || ""}
+                            aria-label="Search"
+                            aria-describedby="basic-addon1"
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </InputGroup>
                 </Form.Group>
                 <hr />
                 <InputGroup>
                     <Button onClick={shuffleList} variant="outline-secondary">Shuffle list</Button>
                     <Button onClick={openRandom} variant="outline-secondary">Open random (1d{randomChoices.length})</Button>
+                    <Button onClick={copyProfile} variant="outline-secondary">Copy profile</Button>
                 </InputGroup>
             </Form>
             <StyledTable
@@ -370,8 +382,8 @@ export default () => {
                 ]}
                 paging= {{
                     enabled: true,
-                    pageIndex: 0,
-                    pageSize: 10,
+                    pageIndex: page,
+                    pageSize: pageSize,
                     pageSizes: [5, 10, 15],
                     position: PagingPosition.Bottom
                   }}
@@ -398,6 +410,22 @@ export default () => {
                                 return <SelectionHeader />;
                             }
                         },
+                    },
+                    pagingSizes: {
+                        elementAttributes: () => ({
+                            onClick: (e, extendedEvent) => {
+                                setPageSize(parseInt(e.target.innerHTML))
+                                console.log({ e, extendedEvent });
+                            }
+                        }),
+                    },
+                    pagingPages: {
+                        elementAttributes: () => ({
+                            onClick: (e, extendedEvent) => {
+                                setPage(parseInt(e.target.innerHTML) - 1)
+                                console.log({ e, extendedEvent });
+                            }
+                        }),
                     },
                     dataRow: {
                         elementAttributes: () => ({
